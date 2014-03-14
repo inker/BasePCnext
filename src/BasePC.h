@@ -168,41 +168,41 @@ private:
 		}
 		return addr;
 	}
-	void and(short addr) {
+	void and(unsigned short addr) {
 		accu &= get_value(addr);
 	}
-	void mov(short addr) {
+	void mov(unsigned short addr) {
 		get_value(addr) = short(accu);
 	}
-	void add(short addr) {
+	void add(unsigned short addr) {
 		accu += get_value(addr);
 	}
-	void adc(short addr) {
+	void adc(unsigned short addr) {
 		accu += (get_value(addr) + (bool)carry());
 	}
-	void sub(short addr) {
+	void sub(unsigned short addr) {
 		accu -= get_value(addr);
 	}
-	void bcs(short addr) {
+	void bcs(unsigned short addr) {
 		if (carry()) ip = get_addr(addr);
 	}
-	void bpl(short addr) {
+	void bpl(unsigned short addr) {
 		if (accu >= 0) ip = get_addr(addr);
 	}
-	void bmi(short addr) {
+	void bmi(unsigned short addr) {
 		if (accu < 0) ip = get_addr(addr);
 	}
-	void beq(short addr) {
+	void beq(unsigned short addr) {
 		if (!accu) ip = get_addr(addr);
 	}
-	void br(short addr) {
+	void br(unsigned short addr) {
 		ip = get_addr(addr);
 	}
-	void isz(short addr) {
+	void isz(unsigned short addr) {
 		++get_value(addr);
 		if (get_value(addr) >= 0) ++ip;
 	}
-	void jsr(short addr) {
+	void jsr(unsigned short addr) {
 		// check this later, something's wrong
 		get_value(addr) = ip;
 		ip = get_addr(addr) + 1;
