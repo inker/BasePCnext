@@ -70,8 +70,9 @@ public:
 
 	void run() {
 		running = true;
-		cout << "IP   IR    AR   DR    ACCU  C" << endl;
+		cout << "after IP   IR    AR   DR    ACCU  C" << endl;
 		while (running) {
+			cout << setfill('0') << setw(3) << hex << ip << "   ";
 			cout << execute() << endl;
 		}
 	}
@@ -155,7 +156,6 @@ private:
 		return *((bool*)&accu + 2);
 	}
 	short& get_value(short addr) {
-		cout << memory.size() << endl;
 		if ((addr >> 11) & 1) {
 			return (short&)memory.at(memory[addr]);
 		}
