@@ -50,7 +50,7 @@ struct Registers {
 
 	Registers() : accu(0), dr(0), ar(0), ip(0), ir(0) {}
 	
-	Registers(short ip, short ir, short ar, short dr, short accu, bool c) :
+	Registers(unsigned short ip, unsigned short ir, unsigned short ar, short dr, short accu, bool c) :
 		ip(ip), ir(ir), ar(ar), dr(dr), accu(accu), c(c) {}
 
 	friend ostream& operator <<(ostream& out, Registers &regs) {
@@ -69,9 +69,10 @@ class BasePC : protected Registers {
 
 	vector<unsigned short> memory;
 	bool running;
+	short altered_cell;
 
 public:
-	BasePC() : Registers(), memory(2048, 0), running(false) {}
+	BasePC() : Registers(), memory(2048, 0), running(false), altered_cell(-1) {}
 	// starting address
 	explicit BasePC(short start) : BasePC() {
 		ip = start;
@@ -131,12 +132,10 @@ public:
 		}
 		running = true;
 		while (running) {
-
 			log << uppercase;
 			log << "<tr>";
 			log << "<td>" << setfill('0') << setw(3) << hex << ip << "</td>";
 			log << "<td>" << setfill('0') << setw(4) << hex << memory[ip] << "</td>";
-			decltype(memory) old (memory.begin(), memory.end());
 			Registers status = execute();
 			log << "<td>" << setfill('0') << setw(4) << hex << status.ir << "</td>";
 			log << "<td>" << setfill('0') << setw(3) << hex << status.ar << "</td>";
@@ -144,16 +143,11 @@ public:
 			log << "<td>" << setfill('0') << setw(4) << hex << status.accu << "</td>";
 			log << "<td>" << setfill('0') << setw(1) << hex << status.c << "</td>";
 			log << "<td>" << setfill('0') << setw(3) << hex << status.ip << "</td>";
-			bool no_change = true;
-			for (unsigned short i = 0; i < memory.size(); ++i) {
-				if (memory[i] != old[i]) {
-					log << "<td>" << setfill('0') << setw(3) << hex << i << "</td>";
-					log << "<td>" << setfill('0') << setw(4) << hex << memory[i] << "</td>";
-					no_change = false;
-					break;
-				}
-			}
-			if (no_change) {
+			if (altered_cell > -1) {
+				log << "<td>" << setfill('0') << setw(3) << hex << altered_cell << "</td>";
+				log << "<td>" << setfill('0') << setw(4) << hex << memory[altered_cell] << "</td>";
+				altered_cell = -1;
+			} else {
 				log << "<td></td>";
 				log << "<td></td>";
 			}
@@ -184,9 +178,9 @@ protected:
 		return addr;
 	}
 
-	unsigned short& get_value(short addr) {
-		return memory[get_addr(addr)];
-	}
+	//unsigned short& get_value(short addr) {
+	//	return memory[get_addr(addr)];
+	//}
 
 	Registers execute() {
 		ir = memory[ip]; // may need replacement to get_value(ip)
@@ -194,6 +188,7 @@ protected:
 		//pair<unsigned short, unsigned short> mem(ip, ir); // changing back to get_value(ip) may be needed
 		auto ip_prev = ip;
 		if (operation == 0xf) {
+			ar = ip_prev;
 			if (!(ir & 0xff)) {
 				operation = (ir >> 8) & 0xf;
 				switch (operation) {
@@ -211,33 +206,31 @@ protected:
 					case 0xb: di(); break;
 					default: break;
 				}
-				++ip;
-				ar = ip_prev;
-				dr = ir;
 			}
+			++ip;
+			dr = ir;
 		} else {
-			unsigned short addr = ir & 0xfff;
+			ar = get_addr(ir & 0xfff);
 			switch (operation) {
-				case 0x0: isz(addr); break;
-				case 0x1: and(addr); break;
-				case 0x2: jsr(addr); break;
-				case 0x3: mov(addr); break;
-				case 0x4: add(addr); break;
-				case 0x5: adc(addr); break;
-				case 0x6: sub(addr); break;
-					//case 0x7:
-				case 0x8: bcs(addr); break;
-				case 0x9: bpl(addr); break;
-				case 0xa: bmi(addr); break;
-				case 0xb: beq(addr); break;
-				case 0xc: br(addr); break;
+				case 0x0: isz(ar); break;
+				case 0x1: and(ar); break;
+				case 0x2: jsr(ar); break;
+				case 0x3: mov(ar); break;
+				case 0x4: add(ar); break;
+				case 0x5: adc(ar); break;
+				case 0x6: sub(ar); break;
+					//case 0x7: doesn't even exist
+				case 0x8: bcs(ar); break;
+				case 0x9: bpl(ar); break;
+				case 0xa: bmi(ar); break;
+				case 0xb: beq(ar); break;
+				case 0xc: br(ar); break;
 					//case 0xd: 
 					//case 0xe: 
 				default: break;
 			}
-			ar = get_addr(addr);
 			if (operation < 8 && operation > 2 || operation == 1) {
-				dr = get_value(ar);
+				dr = memory[ar];
 				++ip;
 			} else {
 				dr = ir;
@@ -249,53 +242,56 @@ protected:
 private:
 
 	void and(unsigned short addr) {
-		accu &= get_value(addr);
+		accu &= memory[addr];
 	}
 	void mov(unsigned short addr) {
-		get_value(addr) = accu;
+		memory[addr] = accu;
+		altered_cell = addr;
 	}
 	void add(unsigned short addr) {
-		auto val = get_value(addr);
+		auto val = memory[addr];
 		unsigned short prev_state = accu + 0x8000;
 		accu += val;
 		if ((unsigned short)accu + 0x8000 < prev_state) c = !c;
 	}
 	void adc(unsigned short addr) {
-		accu += (get_value(addr) + c);
+		accu += (memory[addr] + c);
 	}
 	void sub(unsigned short addr) {
-		auto val = get_value(addr);
+		auto val = memory[addr];
 		unsigned short prev_state = accu + 0x8000;
 		accu -= val;
 		if ((unsigned short)accu + 0x8000 > prev_state) c = !c;
 	}
 
 	void bcs(unsigned short addr) {
-		if (c) ip = get_addr(addr);
+		if (c) ip = addr;
 	}
 	void bpl(unsigned short addr) {
-		if (accu >= 0) ip = get_addr(addr);
+		if (accu >= 0) ip = addr;
 	}
 	void bmi(unsigned short addr) {
-		if (accu < 0) ip = get_addr(addr);
+		if (accu < 0) ip = addr;
 	}
 	void beq(unsigned short addr) {
-		if (!accu) ip = get_addr(addr);
+		if (!accu) ip = addr;
 	}
 	void br(unsigned short addr) {
-		ip = get_addr(addr);
+		ip = addr;
 	}
 	void isz(unsigned short addr) {
-		++get_value(addr);
-		if (get_value(addr) >= 0) ++ip;
+		++memory[addr];
+		if (memory[addr] >= 0) ++ip;
+		altered_cell = addr;
 	}
 	void jsr(unsigned short addr) {
 		// check this later, something's wrong
-		get_value(addr) = ip;
-		ip = get_addr(addr) + 1;
+		memory[addr] = ip;
+		ip = memory[addr] + 1;
+		altered_cell = addr;
 	}
 	void cla() {
-		(short&)accu = 0;
+		accu = 0;
 	}
 	void clc() {
 		c = false;
