@@ -6,6 +6,7 @@
 #include <fstream>
 #include <sstream>
 #include <iomanip>
+#include <map>
 
 using namespace std;
 
@@ -40,12 +41,12 @@ using namespace std;
 //};
 
 struct Registers {
-	unsigned short ip;	// instruction pointer
-	unsigned short ir;	// instruction register
-	unsigned short ar;	// address register
-	short dr;			// data register
-	short accu;// accumulator
-	bool c;				// carry
+	unsigned short ip;	// instruction pointer	(11 bits)
+	unsigned short ir;	// instruction register (16 bits)
+	unsigned short ar;	// address register		(11 bits)
+	short dr;			// data register		(16 bits)
+	short accu;			// accumulator			(16 bits)
+	bool c;				// carry				(1 bit)
 
 	Registers() : accu(0), dr(0), ar(0), ip(0), ir(0) {}
 	
@@ -65,8 +66,10 @@ struct Registers {
 };
 
 class BasePC : protected Registers {
+
 	vector<unsigned short> memory;
 	bool running;
+
 public:
 	BasePC() : Registers(), memory(2048, 0), running(false) {}
 	// starting address
@@ -76,6 +79,12 @@ public:
 	BasePC(vector<unsigned short> memory, short start = 0) : BasePC() {
 		for (size_t i = 0; i < memory.size(); ++i) {
 			this->memory[i] = memory[i];
+		}
+		ip = start;
+	}
+	BasePC(map<unsigned short, unsigned short> m, short start = 0) : BasePC() {
+		for (auto &a : m) {
+			memory[a.first] = a.second;
 		}
 		ip = start;
 	}
@@ -164,14 +173,29 @@ public:
 			cout << setfill('0') << setw(4) << hex << memory[i] << endl;
 		}
 	}
-private:
+
+protected:
+
+	unsigned short& get_addr(unsigned short addr) {
+		if ((addr >> 11) & 1) {
+			addr &= 0xf7ff;
+			return memory.at(addr);
+		}
+		return addr;
+	}
+
+	unsigned short& get_value(short addr) {
+		return memory[get_addr(addr)];
+	}
+
 	Registers execute() {
-		unsigned short instruction = memory[ip];
-		unsigned char operation = instruction >> 12;
-		pair<unsigned short, unsigned short> mem(ip, memory[ip]);
+		ir = memory[ip]; // may need replacement to get_value(ip)
+		unsigned char operation = ir >> 12;
+		//pair<unsigned short, unsigned short> mem(ip, ir); // changing back to get_value(ip) may be needed
+		auto ip_prev = ip;
 		if (operation == 0xf) {
-			if (!(instruction & 0xff)) {
-				operation = (instruction >> 8) & 0xf;
+			if (!(ir & 0xff)) {
+				operation = (ir >> 8) & 0xf;
 				switch (operation) {
 					case 0x0: hlt(); break;
 					case 0x1: nop(); break;
@@ -188,43 +212,41 @@ private:
 					default: break;
 				}
 				++ip;
-				return Registers (ip, mem.second, mem.first, instruction, accu, c);
+				ar = ip_prev;
+				dr = ir;
+			}
+		} else {
+			unsigned short addr = ir & 0xfff;
+			switch (operation) {
+				case 0x0: isz(addr); break;
+				case 0x1: and(addr); break;
+				case 0x2: jsr(addr); break;
+				case 0x3: mov(addr); break;
+				case 0x4: add(addr); break;
+				case 0x5: adc(addr); break;
+				case 0x6: sub(addr); break;
+					//case 0x7:
+				case 0x8: bcs(addr); break;
+				case 0x9: bpl(addr); break;
+				case 0xa: bmi(addr); break;
+				case 0xb: beq(addr); break;
+				case 0xc: br(addr); break;
+					//case 0xd: 
+					//case 0xe: 
+				default: break;
+			}
+			ar = get_addr(addr);
+			if (operation < 8 && operation > 2 || operation == 1) {
+				dr = get_value(ar);
+				++ip;
+			} else {
+				dr = ir;
 			}
 		}
-		unsigned short addr = instruction & 0xfff;
-		switch (operation) {
-			case 0x0: isz(addr); break;
-			case 0x1: and(addr); break;
-			case 0x2: jsr(addr); break;
-			case 0x3: mov(addr); break;
-			case 0x4: add(addr); break;
-			case 0x5: adc(addr); break;
-			case 0x6: sub(addr); break;
-				//case 0x7:
-			case 0x8: bcs(addr); break;
-			case 0x9: bpl(addr); break;
-			case 0xa: bmi(addr); break;
-			case 0xb: beq(addr); break;
-			case 0xc: br(addr); break;
-				//case 0xd: 
-				//case 0xe: 
-			default: break;
-		}
-		if (operation < 8) ++ip;
-		return Registers (ip, mem.second, get_addr(addr), get_value(addr), accu, c);
+		return (Registers)*this;
 	}
 
-	unsigned short& get_addr(unsigned short addr) {
-		if ((addr >> 11) & 1) {
-			addr &= 0xf7ff;
-			return memory.at(addr);
-		}
-		return addr;
-	}
-
-	unsigned short& get_value(short addr) {
-		return memory[get_addr(addr)];
-	}
+private:
 
 	void and(unsigned short addr) {
 		accu &= get_value(addr);
@@ -234,19 +256,20 @@ private:
 	}
 	void add(unsigned short addr) {
 		auto val = get_value(addr);
-		auto prev_state = accu;
+		unsigned short prev_state = accu + 0x8000;
 		accu += val;
-		if (accu < prev_state) c = !c;
+		if ((unsigned short)accu + 0x8000 < prev_state) c = !c;
 	}
 	void adc(unsigned short addr) {
 		accu += (get_value(addr) + c);
 	}
 	void sub(unsigned short addr) {
 		auto val = get_value(addr);
-		auto prev_state = accu;
+		unsigned short prev_state = accu + 0x8000;
 		accu -= val;
-		if (accu > prev_state) c = !c;
+		if ((unsigned short)accu + 0x8000 > prev_state) c = !c;
 	}
+
 	void bcs(unsigned short addr) {
 		if (c) ip = get_addr(addr);
 	}
@@ -297,10 +320,10 @@ private:
 	}
 	void inc() {
 		++accu;
-		if (!accu) c = !c;
+		if (!(accu + 0x8000)) c = !c;
 	}
 	void dec() {
-		if (!accu) c = !c;
+		if (!(accu + 0x8000)) c = !c;
 		--accu;
 	}
 	void hlt() {
