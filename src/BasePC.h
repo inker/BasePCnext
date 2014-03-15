@@ -9,12 +9,42 @@
 
 using namespace std;
 
+//class Cell {
+//	unsigned short cell;
+//	static vector<Cell>& memory;
+//public:
+//	Cell() {}
+//	Cell(unsigned short val) : cell(val) {}
+//	operator unsigned short() {
+//		return cell;
+//	}
+//	unsigned char operation() {
+//		return cell >> 12;
+//	}
+//	// get full address (3 bits)
+//	unsigned char operand() {
+//		return cell & 0xfff;
+//	}
+//	// get final address
+//	unsigned char address() {
+//		unsigned char fa = operand();
+//		if (fa >> 11) {
+//			fa &= 0xf7ff;
+//			return memory.at(memory[fa]);
+//		}
+//		return fa;
+//	}
+//	Cell& operator *() {
+//		return memory[cell];
+//	}
+//};
+
 struct Registers {
-	int accu; // accumulator
-	short dr; // data register
-	unsigned short ar; // address register
-	unsigned short ip; // instruction pointer
-	unsigned short ir; // instruction register
+	unsigned short ip;	// instruction pointer
+	unsigned short ir;	// instruction register
+	unsigned short ar;	// address register
+	short dr;			// data register
+	int accu;			// accumulator
 
 	Registers() : accu(0), dr(0), ar(0), ip(0), ir(0) {}
 	
@@ -81,14 +111,51 @@ public:
 		ofstream log(html_path);
 		if (log.is_open()) {
 			log << "<html>" << endl;
-			log << "<head></head>" << endl;
+			log << "<head><style>td,th { border: 1px solid; text-align:center;  max-width: 100px; padding: 5px} th {font-family:\"Arial Narrow\";font-size:11px} td {font-family:\"courier new\"; font-size:13px;}</style></head>" << endl;
 			log << "<body>" << endl;
-			log << "<table>" << endl;
+			log << "<table style=\"border:1px solid;border-collapse:collapse;\">" << endl;
+			log << "<tr><th colspan=2>Выполняемая команда</th>" << endl;
+			log << "<th colspan=6>Содержимое регистров процессора после выполнения команды</th>" << endl;
+			log << "<th colspan=2>Ячейка, содержимое кот-й изм-сь после вып-ния команды</th></tr>" << endl;
+			log << "<tr><td>Адрес</td><td>Код</td><td>РК</td><td>РА</td><td>РД</td><td>С</td><td>А</td><td>СК</td><td>Адрес</td><td>Новое</td></tr>" << endl;
 		}
 		running = true;
 		while (running) {
+
+			log << uppercase;
+			log << "<tr>";
+			log << "<td>" << setfill('0') << setw(3) << hex << ip << "</td>";
+			log << "<td>" << setfill('0') << setw(4) << hex << memory[ip] << "</td>";
+			decltype(memory) old = { memory.begin(), memory.end() };
 			Registers status = execute();
+			log << "<td>" << setfill('0') << setw(4) << hex << status.ir << "</td>";
+			log << "<td>" << setfill('0') << setw(3) << hex << status.ar << "</td>";
+			log << "<td>" << setfill('0') << setw(4) << hex << status.dr << "</td>";
+			log << "<td>" << setfill('0') << setw(1) << hex << short(bool(status.accu >> 16)) << "</td>";
+			log << "<td>" << setfill('0') << setw(4) << hex << short(status.accu) << "</td>";
+			log << "<td>" << setfill('0') << setw(3) << hex << status.ip << "</td>";
+			pair<unsigned short, unsigned short> mem;
+			bool change_found = false;
+			for (unsigned short i = 0; i < memory.size(); ++i) {
+				if (memory[i] != old[i]) {
+					mem.first = i;
+					mem.second = memory[i];
+					change_found = true;
+					break;
+				}
+			}
+			if (change_found) {
+				log << "<td>" << setfill('0') << setw(3) << hex << mem.first << "</td>";
+				log << "<td>" << setfill('0') << setw(4) << hex << mem.second << "</td>";
+			} else {
+				log << "<td></td>";
+				log << "<td></td>";
+			}
+			log << "</tr>" << endl;
 		}
+		log << "</table>" << endl;
+		log << "</body>" << endl;
+		log << "</html>" << endl;
 		log.close();
 	}
 
@@ -103,8 +170,7 @@ public:
 private:
 	Registers execute() {
 		unsigned short instruction = memory[ip];
-		char operation = instruction >> 12;
-		short addr = instruction & 0xfff;
+		unsigned char operation = instruction >> 12;
 		if (operation == 0xf) {
 			if (!(instruction & 0xff)) {
 				operation = (instruction >> 8) & 0xf;
@@ -124,10 +190,11 @@ private:
 					default: break;
 				}
 				Registers regs(ip, memory[ip], ip, instruction, accu);
-				++ip;
+				regs.ip = ++ip;
 				return regs;
 			}
 		}
+		unsigned short addr = instruction & 0xfff;
 		switch (operation) {
 			case 0x0: isz(addr); break;
 			case 0x1: and(addr); break;
@@ -146,28 +213,29 @@ private:
 				//case 0xe: 
 			default: break;
 		}
-		if (operation < 8) ++ip;
-		return Registers( ip, memory[ip], get_addr(addr), get_value(addr), accu );
+		Registers regs(ip, memory[ip], get_addr(addr), get_value(addr), accu);
+		if (operation < 8) {
+			regs.ip = ++ip;
+		}
+		return regs;
 	}
-
-	
 
 	bool& carry() {
-		return *((bool*)&accu + 2);
+		return (bool&)*((short*)&accu + 1);
 	}
-	short& get_value(short addr) {
-		if ((addr >> 11) & 1) {
-			return (short&)memory.at(memory[addr]);
-		}
 
-		return (short&)memory[addr];
-	}
 	unsigned short& get_addr(unsigned short addr) {
 		if ((addr >> 11) & 1) {
+			addr &= 0xf7ff;
 			return memory.at(addr);
 		}
 		return addr;
 	}
+
+	short& get_value(short addr) {
+		return (short&)memory[get_addr(addr)];
+	}
+
 	void and(unsigned short addr) {
 		accu &= get_value(addr);
 	}
