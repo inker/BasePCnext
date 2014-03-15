@@ -44,12 +44,13 @@ struct Registers {
 	unsigned short ir;	// instruction register
 	unsigned short ar;	// address register
 	short dr;			// data register
-	int accu;			// accumulator
+	short accu;// accumulator
+	bool c;				// carry
 
 	Registers() : accu(0), dr(0), ar(0), ip(0), ir(0) {}
 	
-	Registers(short ip, short ir, short ar, short dr, int accu) :
-		ip(ip), ir(ir), ar(ar), dr(dr), accu(accu) {}
+	Registers(short ip, short ir, short ar, short dr, short accu, bool c) :
+		ip(ip), ir(ir), ar(ar), dr(dr), accu(accu), c(c) {}
 
 	friend ostream& operator <<(ostream& out, Registers &regs) {
 		out << uppercase;
@@ -57,8 +58,8 @@ struct Registers {
 		out << setfill('0') << setw(4) << hex << regs.ir << "  ";
 		out << setfill('0') << setw(3) << hex << regs.ar << "  ";
 		out << setfill('0') << setw(4) << hex << regs.dr << "  ";
-		out << setfill('0') << setw(4) << hex << short(regs.accu) << "  ";
-		out << setfill('0') << setw(1) << hex << short(bool(regs.accu >> 16));
+		out << setfill('0') << setw(4) << hex << regs.accu << "  ";
+		out << setfill('0') << setw(1) << hex << regs.c;
 		return out;
 	}
 };
@@ -117,7 +118,7 @@ public:
 			log << "<tr><th colspan=2>Выполняемая команда</th>" << endl;
 			log << "<th colspan=6>Содержимое регистров процессора после выполнения команды</th>" << endl;
 			log << "<th colspan=2>Ячейка, содержимое кот-й изм-сь после вып-ния команды</th></tr>" << endl;
-			log << "<tr><td>Адрес</td><td>Код</td><td>РК</td><td>РА</td><td>РД</td><td>С</td><td>А</td><td>СК</td><td>Адрес</td><td>Новое</td></tr>" << endl;
+			log << "<tr><td>Адрес</td><td>Код</td><td>РК</td><td>РА</td><td>РД</td><td>А</td><td>С</td><td>СК</td><td>Адрес</td><td>Новое</td></tr>" << endl;
 		}
 		running = true;
 		while (running) {
@@ -126,28 +127,24 @@ public:
 			log << "<tr>";
 			log << "<td>" << setfill('0') << setw(3) << hex << ip << "</td>";
 			log << "<td>" << setfill('0') << setw(4) << hex << memory[ip] << "</td>";
-			decltype(memory) old = { memory.begin(), memory.end() };
+			decltype(memory) old (memory.begin(), memory.end());
 			Registers status = execute();
 			log << "<td>" << setfill('0') << setw(4) << hex << status.ir << "</td>";
 			log << "<td>" << setfill('0') << setw(3) << hex << status.ar << "</td>";
 			log << "<td>" << setfill('0') << setw(4) << hex << status.dr << "</td>";
-			log << "<td>" << setfill('0') << setw(1) << hex << short(bool(status.accu >> 16)) << "</td>";
-			log << "<td>" << setfill('0') << setw(4) << hex << short(status.accu) << "</td>";
+			log << "<td>" << setfill('0') << setw(4) << hex << status.accu << "</td>";
+			log << "<td>" << setfill('0') << setw(1) << hex << status.c << "</td>";
 			log << "<td>" << setfill('0') << setw(3) << hex << status.ip << "</td>";
-			pair<unsigned short, unsigned short> mem;
-			bool change_found = false;
+			bool no_change = true;
 			for (unsigned short i = 0; i < memory.size(); ++i) {
 				if (memory[i] != old[i]) {
-					mem.first = i;
-					mem.second = memory[i];
-					change_found = true;
+					log << "<td>" << setfill('0') << setw(3) << hex << i << "</td>";
+					log << "<td>" << setfill('0') << setw(4) << hex << memory[i] << "</td>";
+					no_change = false;
 					break;
 				}
 			}
-			if (change_found) {
-				log << "<td>" << setfill('0') << setw(3) << hex << mem.first << "</td>";
-				log << "<td>" << setfill('0') << setw(4) << hex << mem.second << "</td>";
-			} else {
+			if (no_change) {
 				log << "<td></td>";
 				log << "<td></td>";
 			}
@@ -171,6 +168,7 @@ private:
 	Registers execute() {
 		unsigned short instruction = memory[ip];
 		unsigned char operation = instruction >> 12;
+		pair<unsigned short, unsigned short> mem(ip, memory[ip]);
 		if (operation == 0xf) {
 			if (!(instruction & 0xff)) {
 				operation = (instruction >> 8) & 0xf;
@@ -189,9 +187,8 @@ private:
 					case 0xb: di(); break;
 					default: break;
 				}
-				Registers regs(ip, memory[ip], ip, instruction, accu);
-				regs.ip = ++ip;
-				return regs;
+				++ip;
+				return Registers (ip, mem.second, mem.first, instruction, accu, c);
 			}
 		}
 		unsigned short addr = instruction & 0xfff;
@@ -213,15 +210,8 @@ private:
 				//case 0xe: 
 			default: break;
 		}
-		Registers regs(ip, memory[ip], get_addr(addr), get_value(addr), accu);
-		if (operation < 8) {
-			regs.ip = ++ip;
-		}
-		return regs;
-	}
-
-	bool& carry() {
-		return (bool&)*((short*)&accu + 1);
+		if (operation < 8) ++ip;
+		return Registers (ip, mem.second, get_addr(addr), get_value(addr), accu, c);
 	}
 
 	unsigned short& get_addr(unsigned short addr) {
@@ -232,27 +222,33 @@ private:
 		return addr;
 	}
 
-	short& get_value(short addr) {
-		return (short&)memory[get_addr(addr)];
+	unsigned short& get_value(short addr) {
+		return memory[get_addr(addr)];
 	}
 
 	void and(unsigned short addr) {
 		accu &= get_value(addr);
 	}
 	void mov(unsigned short addr) {
-		get_value(addr) = short(accu);
+		get_value(addr) = accu;
 	}
 	void add(unsigned short addr) {
-		accu += get_value(addr);
+		auto val = get_value(addr);
+		auto prev_state = accu;
+		accu += val;
+		if (accu < prev_state) c = !c;
 	}
 	void adc(unsigned short addr) {
-		accu += (get_value(addr) + (bool)carry());
+		accu += (get_value(addr) + c);
 	}
 	void sub(unsigned short addr) {
-		accu -= get_value(addr);
+		auto val = get_value(addr);
+		auto prev_state = accu;
+		accu -= val;
+		if (accu > prev_state) c = !c;
 	}
 	void bcs(unsigned short addr) {
-		if (carry()) ip = get_addr(addr);
+		if (c) ip = get_addr(addr);
 	}
 	void bpl(unsigned short addr) {
 		if (accu >= 0) ip = get_addr(addr);
@@ -279,30 +275,32 @@ private:
 		(short&)accu = 0;
 	}
 	void clc() {
-		carry() = 0;
+		c = false;
 	}
 	void cma() {
 		accu = ~accu;
 	}
 	void cmc() {
-		carry() = !carry();
+		c = !c;
 	}
 	void rol() {
-		bool temp = carry();
-		carry() = accu >> 15;
+		bool temp = c;
+		c = accu >> 15;
 		accu <<= 1;
 		accu |= temp;
 	}
 	void ror() {
-		short temp = carry();
-		carry() = accu & 1;
+		unsigned short temp = c;
+		c = accu & 1;
 		accu >>= 1;
-		accu |= (temp << 15);
+		(unsigned short&)accu |= (temp << 15);
 	}
 	void inc() {
 		++accu;
+		if (!accu) c = !c;
 	}
 	void dec() {
+		if (!accu) c = !c;
 		--accu;
 	}
 	void hlt() {
