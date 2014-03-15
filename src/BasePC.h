@@ -89,20 +89,36 @@ public:
 		}
 		ip = start;
 	}
-	// input file
+	// input file (txt or csv)
 	explicit BasePC(string path) : BasePC() {
+		bool csv = false;
+		if (path.substr(path.length() - 4, 4) == ".csv") {
+			csv = true;
+		}
 		ifstream file (path.data());
 		string line;
 		bool find_start = true;
-		
+		bool plus_found = false;
 		unsigned short memory_cell;
 
 		while (getline(file, line)) {
+			if (csv) line.replace(line.find(';'), 1, " ");
+			if (find_start) {
+				int pos = line.find('\+');
+				if (pos > -1) {
+					plus_found = true;
+					if (line[pos - 1] == '(' && line[pos + 1] == ')') {
+						line[pos - 1] = line[pos] = line[pos + 1] = ' ';
+					} else {
+						line[pos] = ' ';
+					}
+				}
+			}
 			istringstream iss;
 			iss.str(line);
 			iss >> hex >> memory_cell;
 			iss >> hex >> memory[memory_cell];
-			if (find_start && (int)line.find('\+') > -1) {
+			if (find_start && plus_found) {
 				ip = memory_cell;
 				find_start = false;
 			}
@@ -178,14 +194,9 @@ protected:
 		return addr;
 	}
 
-	//unsigned short& get_value(short addr) {
-	//	return memory[get_addr(addr)];
-	//}
-
 	Registers execute() {
-		ir = memory[ip]; // may need replacement to get_value(ip)
+		ir = memory[ip];
 		unsigned char operation = ir >> 12;
-		//pair<unsigned short, unsigned short> mem(ip, ir); // changing back to get_value(ip) may be needed
 		auto ip_prev = ip;
 		if (operation == 0xf) {
 			ar = ip_prev;
@@ -234,6 +245,7 @@ protected:
 				++ip;
 			} else {
 				dr = ir;
+				ar = ip_prev;
 			}
 		}
 		return (Registers)*this;
