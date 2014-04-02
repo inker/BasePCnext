@@ -9,7 +9,18 @@
 
 #include <stdio.h>
 #include <tchar.h>
+#include <conio.h>
 
+#include <string>
+#include <functional>
 
+#include <vector>
+#include <map>
+#include <unordered_map>
+
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <iomanip>
 
 // TODO: reference additional headers your program requires here
