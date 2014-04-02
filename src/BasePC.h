@@ -59,6 +59,77 @@ public:
 		parse_file(path);
 	}
 
+
+	void assign(vector<unsigned short>& data, unsigned short start = 0) {
+		unsigned short i = 0;
+		memory = data;
+		ip = start;
+	}
+
+	template <class T>
+	void assign(T m, unsigned short start = 0) {
+		for (pair<const unsigned short, unsigned short> &a : m) {
+			memory[a.first] = a.second;
+		}
+		ip = start;
+	}
+
+	template <class Iterator>
+	void assign(Iterator begin, Iterator end) {
+		auto mit = memory.begin();
+		while (mit != memory.end()) {
+			*mit = *begin;
+			++begin;
+			++mit;
+		}
+		if (it != end) {
+			cout << "The input container has been truncated to 2048 elements" << endl;
+		}
+	}
+
+	void parse_file(const string& path) {
+		bool csv = (path.substr(path.length() - 4, 4) == ".csv" ? true : false);
+		try {
+			ifstream file(path.data());
+			string line;
+			bool find_start = true;
+			bool plus_found = false;
+			unsigned short memory_cell;
+			if (file.is_open()) {
+				while (getline(file, line)) {
+					if (csv) line[line.find(';')] = ' ';
+					if (find_start) {
+						int pos = line.find('\+');
+						if (pos > -1) {
+							plus_found = true;
+							line[pos] = ' ';
+							if (pos && line[pos - 1] == '(' && line[pos + 1] == ')') {
+								line[pos - 1] = line[pos + 1] = ' ';
+							}
+						}
+					}
+					istringstream iss;
+					iss.str(line);
+					iss >> hex >> memory_cell;
+					iss >> hex >> memory[memory_cell];
+					if (find_start && plus_found) {
+						ip = memory_cell;
+						find_start = false;
+					}
+				}
+				file.close();
+			} else {
+				throw runtime_error("Couldn't open file");
+			}
+		} catch (runtime_error e) {
+			cout << e.what() << endl;
+			_getch();
+		} catch (...) {
+			cout << "Couldn't parse file" << endl;
+			_getch();
+		}
+	}
+
 	void set_cell(unsigned short cell_number, unsigned short value) {
 		memory.at(cell_number) = value;
 	}
@@ -205,6 +276,31 @@ public:
 	//	}
 	//}
 
+	Registers execute() {
+		ar = ip;
+		dr = memory[ar];
+		++ip;
+		ir = dr;
+
+		if (ir < 0xf000) {
+			//if (is_indirect()) {
+			//	ar = fetch_addr(ir);
+			//	dr = memory[ar];
+			//	// todo: finish (check for addition)
+			//}
+			unsigned char operation = ir >> 12;
+			if (operation < 0x8) {
+				ar = get_addr(ir & 0xfff); // ir or dr...
+			}
+			operations[operation]();
+		} else {
+			if (!(ir & 0xff)) {
+				operations[ir >> 8]();
+			}
+		}
+		return (Registers)*this;
+	}
+	
 	void show_memory(unsigned short start = 0, unsigned short end = 2048) const {
 		if (end > 2048) end = 2048;
 		cout << "size: " << memory.size() << endl;
@@ -237,76 +333,6 @@ public:
 		}
 	}
 
-	void assign(vector<unsigned short>& data, unsigned short start = 0) {
-		unsigned short i = 0;
-		memory = data;
-		ip = start;
-	}
-
-	template <class T>
-	void assign(T m, unsigned short start = 0) {
-		for (pair<const unsigned short, unsigned short> &a : m) {
-			memory[a.first] = a.second;
-		}
-		ip = start;
-	}
-
-	template <class Iterator>
-	void assign(Iterator begin, Iterator end) {
-		auto mit = memory.begin();
-		while (mit != memory.end()) {
-			*mit = *begin;
-			++begin;
-			++mit;
-		}
-		if (it != end) {
-			cout << "The input container has been truncated to 2048 elements" << endl;
-		}
-	}
-
-	void parse_file(const string& path) {
-		bool csv = (path.substr(path.length() - 4, 4) == ".csv" ? true : false);
-		try {
-			ifstream file(path.data());
-			string line;
-			bool find_start = true;
-			bool plus_found = false;
-			unsigned short memory_cell;
-			if (file.is_open()) {
-				while (getline(file, line)) {
-					if (csv) line[line.find(';')] = ' ';
-					if (find_start) {
-						int pos = line.find('\+');
-						if (pos > -1) {
-							plus_found = true;
-							line[pos] = ' ';
-							if (pos && line[pos - 1] == '(' && line[pos + 1] == ')') {
-								line[pos - 1] = line[pos + 1] = ' ';
-							}
-						}
-					}
-					istringstream iss;
-					iss.str(line);
-					iss >> hex >> memory_cell;
-					iss >> hex >> memory[memory_cell];
-					if (find_start && plus_found) {
-						ip = memory_cell;
-						find_start = false;
-					}
-				}
-				file.close();
-			} else {
-				throw runtime_error("Couldn't open file");
-			}
-		} catch (runtime_error e) {
-			cout << e.what() << endl;
-			_getch();
-		} catch (...) {
-			cout << "Couldn't parse file" << endl;
-			_getch();
-		}
-	}
-
 protected:
 
 	unsigned short get_addr(unsigned short addr) const {
@@ -323,31 +349,6 @@ protected:
 
 	bool is_indirect() const {
 		return (ir >> 11) & 1;
-	}
-
-	Registers execute() {
-		ar = ip;
-		dr = memory[ar];
-		++ip;
-		ir = dr;
-
-		if (ir < 0xf000) {
-			//if (is_indirect()) {
-			//	ar = fetch_addr(ir);
-			//	dr = memory[ar];
-			//	// todo: finish (check for addition)
-			//}
-			unsigned char operation = ir >> 12;
-			if (operation < 0x8) {
-				ar = get_addr(ir & 0xfff); // ir or dr...
-			}
-			operations[operation]();
-		} else {
-			if (!(ir & 0xff)) {
-				operations[ir >> 8]();
-			}
-		}
-		return (Registers)*this;
 	}
 
 private:
