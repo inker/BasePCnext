@@ -176,10 +176,10 @@ public:
 					log << "<head><style>td,th { border: 1px solid; text-align:center;  max-width: 100px; padding: 5px} th {font-family:\"Arial Narrow\";font-size:11px} td {font-family:\"courier new\"; font-size:13px;}</style></head>" << endl;
 					log << "<body>" << endl;
 					log << "<table style=\"border:1px solid;border-collapse:collapse;\">" << endl;
-					log << "<tr><th colspan=2>Выполняемая команда</th>" << endl;
-					log << "<th colspan=6>Содержимое регистров процессора после выполнения команды</th>" << endl;
-					log << "<th colspan=2>Ячейка, содержимое кот-й изм-сь после вып-ния команды</th></tr>" << endl;
-					log << "<tr><td>Адрес</td><td>Код</td><td>РК</td><td>РА</td><td>РД</td><td>А</td><td>С</td><td>СК</td><td>Адрес</td><td>Новое</td></tr>" << endl;
+					log << "<tr><th colspan=2>пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ</th>" << endl;
+					log << "<th colspan=6>пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ</th>" << endl;
+					log << "<th colspan=2>пїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ-пїЅ пїЅпїЅпїЅ-пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ-пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ</th></tr>" << endl;
+					log << "<tr><td>пїЅпїЅпїЅпїЅпїЅ</td><td>пїЅпїЅпїЅ</td><td>пїЅпїЅ</td><td>пїЅпїЅ</td><td>пїЅпїЅ</td><td>пїЅ</td><td>пїЅ</td><td>пїЅпїЅ</td><td>пїЅпїЅпїЅпїЅпїЅ</td><td>пїЅпїЅпїЅпїЅпїЅ</td></tr>" << endl;
 					running = true;
 					log << uppercase << setfill('0') << hex;
 
@@ -239,10 +239,10 @@ public:
 	//		log << "<head><style>td,th { border: 1px solid; text-align:center;  max-width: 100px; padding: 5px} th {font-family:\"Arial Narrow\";font-size:11px} td {font-family:\"courier new\"; font-size:13px;}</style></head>" << endl;
 	//		log << "<body>" << endl;
 	//		log << "<table style=\"border:1px solid;border-collapse:collapse;\">" << endl;
-	//		log << "<tr><th colspan=2>Выполняемая команда</th>" << endl;
-	//		log << "<th colspan=6>Содержимое регистров процессора после выполнения команды</th>" << endl;
-	//		log << "<th colspan=2>Ячейка, содержимое кот-й изм-сь после вып-ния команды</th></tr>" << endl;
-	//		log << "<tr><td>Адрес</td><td>Код</td><td>РК</td><td>РА</td><td>РД</td><td>А</td><td>С</td><td>СК</td><td>Адрес</td><td>Новое</td></tr>" << endl;
+	//		log << "<tr><th colspan=2>пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ</th>" << endl;
+	//		log << "<th colspan=6>пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ</th>" << endl;
+	//		log << "<th colspan=2>пїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ-пїЅ пїЅпїЅпїЅ-пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ-пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ</th></tr>" << endl;
+	//		log << "<tr><td>пїЅпїЅпїЅпїЅпїЅ</td><td>пїЅпїЅпїЅ</td><td>пїЅпїЅ</td><td>пїЅпїЅ</td><td>пїЅпїЅ</td><td>пїЅ</td><td>пїЅ</td><td>пїЅпїЅ</td><td>пїЅпїЅпїЅпїЅпїЅ</td><td>пїЅпїЅпїЅпїЅпїЅ</td></tr>" << endl;
 	//		log << uppercase << setfill('0') << hex;
 	//		size_t instr_count = 0;
 	//		for (auto &status : trace_table) {
@@ -402,7 +402,7 @@ private:
 		if (!accu) ip = fetch_addr(dr);
 	}
 	void br() {
-		//ip = ar;
+		//ip = ar; 
 		ip = fetch_addr(dr);
 	}
 	void isz() {
